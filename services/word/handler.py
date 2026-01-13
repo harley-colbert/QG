@@ -13,17 +13,8 @@ from docxtpl import DocxTemplate, Subdoc
 from docx import Document
 
 from .constants import logger, LOG_PREFIX  # your app-level logger + prefix
-from .sanitize import sanitize_except_exceptions, strip_markup
+from .sanitize import sanitize_plain_text
 from .images import replace_image_markers_xml
-from .html_shim import ensure_html_wrapper_initialized, add_html_wrapper
-from .quill_convert import to_semantic_html
-
-# -------------------------------------------------------------------
-# Config
-# -------------------------------------------------------------------
-# Convert ANY string that looks like HTML <ul>/<ol>/<li> into a Subdoc,
-# in addition to the explicit EXCEPTION_HTML_FIELDS list in constants.
-ENABLE_HTML_LIST_HEURISTIC = True
 
 logger = logging.getLogger(__name__)
 LOG_PREFIX = "[WORD]"
@@ -60,8 +51,8 @@ class PreserveUndefined(jinja2.Undefined):
 class WordSubmissionHandler:
     """
     Pipeline:
-      1) Sanitize context (except whitelisted rich fields)
-      2) Convert rich strings (HTML) into Subdocs
+      1) Sanitize context to plain text
+      2) Convert multiline strings into Subdocs
       3) Render ALL fields (plain + Subdocs) in ONE PASS
       4) Save a 'noimage - <finalname>.docx' copy
       5) Replace image markers at XML level
@@ -77,7 +68,6 @@ class WordSubmissionHandler:
         self.status_callback = status_callback
         self.doc: Optional[Document] = None
         self.tpl: Optional[DocxTemplate] = None
-        ensure_html_wrapper_initialized()
         logger.debug(f"{LOG_PREFIX} __init__: template_path={template_path!r}")
 
     # ---------------- misc ----------------
@@ -106,7 +96,7 @@ class WordSubmissionHandler:
         src_doc.save(tmp_local)
         shutil.copy2(tmp_local, final_path)
 
-    # ---------------- helpers: Subdoc build & heuristics ----------------
+    # ---------------- helpers: Subdoc build ----------------
     def _build_preserve_env(self) -> jinja2.Environment:
         env = jinja2.Environment(autoescape=False, trim_blocks=True, lstrip_blocks=True)
         env.undefined = PreserveUndefined
@@ -117,56 +107,39 @@ class WordSubmissionHandler:
             raise RuntimeError("Template not loaded.")
         return self.tpl.new_subdoc()
 
-    @staticmethod
-    def _looks_like_html_list(val: Any) -> bool:
-        if not ENABLE_HTML_LIST_HEURISTIC or not isinstance(val, str):
-            return False
-        v = val.lower()
-        return ("<ul" in v) or ("<ol" in v) or ("<li" in v)
-
-    def _build_subdoc_from_html(self, html: str) -> Subdoc:
-        ensure_html_wrapper_initialized()
+    def _build_subdoc_from_lines(self, value: str) -> Subdoc:
         sub = self._new_subdoc()
-        add_html_wrapper(sub, html)
+        lines = value.splitlines() or [""]
+        for line in lines:
+            sub.add_paragraph(line)
         return sub
 
-    def _to_subdoc_html(self, value: str, path_label: str) -> Subdoc:
-        """Convert rich HTML string to Subdoc; fall back to stripped <p> on errors."""
-        try:
-            html = to_semantic_html(value)
-            logger.debug(
-                f"{LOG_PREFIX} [HTML_CONVERSION] path={path_label} "
-                f"len_in={len(value)}"
-            )
-        except Exception as e:
-            logger.warning(f"{LOG_PREFIX} to_semantic_html failed at {path_label}: {e}; falling back to plain.")
-            html = f"<p>{strip_markup(value)}</p>"
-        return self._build_subdoc_from_html(html)
-
-    def _transform_exceptions_to_subdocs(self, obj: Any, path: Optional[List[str]] = None) -> Any:
+    def _transform_multiline_to_subdocs(self, obj: Any, path: Optional[List[str]] = None) -> Any:
         """
-        Recursively convert whitelisted rich fields (EXCEPTION_HTML_FIELDS)
-        and values that look like HTML lists into Subdoc objects.
+        Recursively convert multiline strings into Subdoc objects.
+        Single-line strings remain unchanged.
         """
-        from .constants import EXCEPTION_HTML_FIELDS  # paths compared in lowercase
         if path is None:
             path = []
 
         if isinstance(obj, dict):
             out = {}
             for k, v in obj.items():
-                preserved_path = ".".join(path + [k])      # keep casing in logs
-                compare_path = preserved_path.lower()      # membership test only
-                if isinstance(v, str) and (
-                    compare_path in EXCEPTION_HTML_FIELDS or self._looks_like_html_list(v)
-                ):
-                    out[k] = self._to_subdoc_html(v, preserved_path)
+                if isinstance(v, str) and "\n" in v:
+                    label = ".".join(path + [k])
+                    logger.debug(f"{LOG_PREFIX} [MULTILINE] path={label} len_in={len(v)}")
+                    out[k] = self._build_subdoc_from_lines(v)
                 else:
-                    out[k] = self._transform_exceptions_to_subdocs(v, path + [k])
+                    out[k] = self._transform_multiline_to_subdocs(v, path + [k])
             return out
 
         if isinstance(obj, list):
-            return [self._transform_exceptions_to_subdocs(v, path) for v in obj]
+            return [self._transform_multiline_to_subdocs(v, path) for v in obj]
+
+        if isinstance(obj, str) and "\n" in obj:
+            label = ".".join(path)
+            logger.debug(f"{LOG_PREFIX} [MULTILINE] path={label} len_in={len(obj)}")
+            return self._build_subdoc_from_lines(obj)
 
         return obj
 
@@ -190,18 +163,18 @@ class WordSubmissionHandler:
     def render_document(self, context: dict, output_path: str) -> None:
         logger.info(f"{LOG_PREFIX} [Render_Content] keys={list(context.keys())} output_path={output_path!r}")
 
-        # 1) Sanitize (preserves EXCEPTION_HTML_FIELDS untouched)
+        # 1) Sanitize (strip markup to plain text)
         self.send_status("Step 1: Sanitizing context...")
-        sanitized_context = sanitize_except_exceptions(context)
+        sanitized_context = sanitize_plain_text(context)
 
         # 2) Load template (single DocxTemplate instance for entire run)
         self.send_status("Step 2: Loading DOCX template...")
         self.load_template()
         assert self.tpl is not None
 
-        # 3) Convert rich fields to Subdocs
-        self.send_status("Step 3: Converting rich fields to Subdocs...")
-        context_for_tpl = self._transform_exceptions_to_subdocs(sanitized_context)
+        # 3) Convert multiline strings to Subdocs
+        self.send_status("Step 3: Converting multiline fields to Subdocs...")
+        context_for_tpl = self._transform_multiline_to_subdocs(sanitized_context)
 
         # Debug: which paths actually became Subdocs?
         flat = self._flatten(context_for_tpl)

@@ -1,6 +1,9 @@
 import logging
+import re
 from typing import Any, Callable, Dict, List, Optional
 from datetime import datetime
+
+from bs4 import BeautifulSoup
 
 from config.config_manager import ConfigManager
 from config.settings import Settings
@@ -43,6 +46,54 @@ class QuoteViewModel:
       - Word‑template submission
       - Category metadata for dynamic rendering
     """
+
+    _BLOCK_CLOSE_RE = re.compile(r"</\s*(p|div|li|ul|ol|h[1-6])\s*>", re.IGNORECASE)
+    _BREAK_RE = re.compile(r"<\s*br\s*/?\s*>", re.IGNORECASE)
+
+    @classmethod
+    def _normalize_markup_newlines(cls, text: str) -> str:
+        normalized = cls._BREAK_RE.sub("\n", text)
+        normalized = cls._BLOCK_CLOSE_RE.sub("\n", normalized)
+        return normalized
+
+    @classmethod
+    def _sanitize_text_value(cls, value: Any) -> str:
+        if value is None:
+            raw = ""
+        elif isinstance(value, str):
+            raw = value
+        else:
+            raw = str(value)
+        normalized = cls._normalize_markup_newlines(raw)
+        cleaned = BeautifulSoup(normalized, "html.parser").get_text(separator="\n")
+        cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned
+
+    @classmethod
+    def _sanitize_nested(cls, obj: Any) -> Any:
+        if isinstance(obj, dict):
+            return {k: cls._sanitize_nested(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [cls._sanitize_nested(v) for v in obj]
+        if isinstance(obj, str) or obj is None:
+            return cls._sanitize_text_value(obj)
+        return obj
+
+    @classmethod
+    def _flatten_data(cls, obj: Any, prefix: str = "data") -> Dict[str, str]:
+        flat: Dict[str, str] = {}
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                key = f"{prefix}.{k}" if prefix else str(k)
+                flat.update(cls._flatten_data(v, key))
+        elif isinstance(obj, list):
+            for idx, v in enumerate(obj):
+                key = f"{prefix}.{idx}" if prefix else str(idx)
+                flat.update(cls._flatten_data(v, key))
+        else:
+            flat[prefix] = cls._sanitize_text_value(obj)
+        return flat
 
     def __init__(
         self,
@@ -171,7 +222,8 @@ class QuoteViewModel:
 
         # strip "data." and merge into our single quote.data
         nested_key = full_key[len("data."):]
-        merge_nested_dict(self.quote.data, nested_key, value)
+        cleaned = self._sanitize_text_value(value)
+        merge_nested_dict(self.quote.data, nested_key, cleaned)
         self.logger.info(f"set_field {full_key} -> {value!r}")
 
     def get_field(self, full_key: str) -> Optional[str]:
@@ -273,7 +325,7 @@ class QuoteViewModel:
         """
         if not self.quote.data:
             return {}
-        return self.quote.data
+        return self._flatten_data(self.quote.data)
 
 
     def set_all_fields(self, flat_map: Dict[str, str]) -> None:
@@ -314,10 +366,12 @@ class QuoteViewModel:
             self.logger.info(f"[save_quote] Nested dict keys: {list(nested['data'].keys())[:10]}...")
 
             # Actually store the nested data
-            self.quote.data = nested['data']
+            self.quote.data = nested["data"]
         else:
             self.logger.info("[save_quote] Data already nested, storing as-is.")
             self.quote.data = js_fields
+
+        self.quote.data = self._sanitize_nested(self.quote.data)
 
         # 3. Log current data (truncated for safety)
         preview_keys = list(self.quote.data.keys()) if isinstance(self.quote.data, dict) else type(self.quote.data)
@@ -340,6 +394,8 @@ class QuoteViewModel:
     def load_quote(self, filename: str) -> Dict[int, Dict[str, Any]]:
         # 1) load from XML into self.quote.data
         self.model.load_from_xml(filename)
+        for quote in self.model.quotes.values():
+            quote.data = self._sanitize_nested(quote.data)
         # 2) return full quotes dict to the bridge; 
         #    JS can then call get_all_fields() to repopulate its store
         return self.get_quotes()
