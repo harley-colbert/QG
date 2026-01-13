@@ -13,30 +13,44 @@
 </head>
 
 <body>
-  <!-- ═══════════════  APP BAR  ═══════════════ -->
-  <header>
-    <img src="logo.png" alt="Logo" class="header-logo" />
-    <h1>Quote Generator</h1>
-  </header>
+  <div id="app-shell">
+    <aside id="app-sidebar">
+      <div id="section-nav"></div>
+    </aside>
 
-  <!-- ═══════════════  MAIN TOOLBAR  ═══════════════ -->
-  <nav class="toolbar">
-    <select id="quote-type-select">
-      <option value="budgetary">Budgetary</option>
-      <option value="final">Final</option>
-    </select>
-    <button id="btn-savedoc">Save</button>
-    <button id="btn-new">New</button>
-    <button id="btn-open">Open</button>
-    <button id="btn-submit">Submit</button>
-    <button id="btn-contacts">Manage Contacts</button>
-    <button id="btn-settings">Manage Settings</button>
-  </nav>
+    <div id="app-main">
+      <!-- ═══════════════  APP BAR  ═══════════════ -->
+      <header>
+        <h1>Quote Generator</h1>
+      </header>
 
-  <!-- ═══════════════  MAIN CONTENT  ═══════════════ -->
-  <main>
-    <div id="main-content" class="scroll-container"></div>
-  </main>
+      <!-- ═══════════════  MAIN TOOLBAR  ═══════════════ -->
+      <nav class="toolbar">
+        <select id="quote-type-select">
+          <option value="budgetary">Budgetary</option>
+          <option value="final">Final</option>
+        </select>
+        <button id="btn-savedoc">Save</button>
+        <button id="btn-new">New</button>
+        <button id="btn-open">Open</button>
+        <button id="btn-submit">Submit</button>
+        <button id="btn-contacts">Manage Contacts</button>
+        <button id="btn-settings">Manage Settings</button>
+        <div class="status-bar">
+          <span id="status-file">No file</span>
+          <span id="status-dirty">Clean</span>
+          <span id="status-last-saved">Last saved: —</span>
+        </div>
+      </nav>
+
+      <!-- ═══════════════  MAIN CONTENT  ═══════════════ -->
+      <main>
+        <div id="scroll-container" class="scroll-container">
+          <div id="main-content"></div>
+        </div>
+      </main>
+    </div>
+  </div>
 
   <!-- ═══════════════  MODALS  ═══════════════ -->
   <!-- Submission -->
@@ -69,10 +83,11 @@
   <div id="ship-info-modal" class="modal-overlay" style="display:none;">
     <div class="modal-content">
       <span id="ship-info-close" class="modal-close">&times;</span>
-      <img src="inco.jpg" alt="Information"
-           style="max-width:100%; height:auto;" />
+      <p>Shipping information reference image unavailable.</p>
     </div>
   </div>
+
+  <div id="toast-container"></div>
 
   <!-- ═══════════════  APP ENTRYPOINT  ═══════════════ -->
   <script type="module" src="js/main.js"></script>

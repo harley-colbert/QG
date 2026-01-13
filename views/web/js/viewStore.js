@@ -10,6 +10,50 @@ export const viewStore = {
 };
 
 /**
+ * UI metadata per quote type for status display.
+ */
+export const uiMeta = {
+  budgetary: {
+    activeFile: '',
+    dirty: false,
+    lastSaved: ''
+  },
+  final: {
+    activeFile: '',
+    dirty: false,
+    lastSaved: ''
+  }
+};
+
+function emitUiMetaChange(type) {
+  document.dispatchEvent(new CustomEvent('qg:ui-meta-changed', { detail: { type } }));
+}
+
+export function setActiveFile(type, path) {
+  uiMeta[type].activeFile = path || '';
+  emitUiMetaChange(type);
+}
+
+export function setLastSaved(type, timestamp) {
+  uiMeta[type].lastSaved = timestamp || '';
+  emitUiMetaChange(type);
+}
+
+export function markDirty(type) {
+  uiMeta[type].dirty = true;
+  emitUiMetaChange(type);
+}
+
+export function clearDirty(type) {
+  uiMeta[type].dirty = false;
+  emitUiMetaChange(type);
+}
+
+export function getUiMeta(type) {
+  return uiMeta[type];
+}
+
+/**
  * Registered active field keys (inputs, selects, textareas).
  */
 export const activeFieldKeys = new Set();

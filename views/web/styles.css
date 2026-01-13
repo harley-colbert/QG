@@ -15,6 +15,34 @@ body {
   background-color: #353537;
   color: #333;
   line-height: 1.6;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* App Shell Layout */
+#app-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+#app-sidebar {
+  background: #1f1f1f;
+  color: #fff;
+  padding: 24px 16px;
+  border-right: 1px solid #2f2f2f;
+}
+
+#section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 /* Header Styles */
@@ -51,6 +79,8 @@ nav.toolbar {
   display: flex;
   justify-content: space-around;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 nav.toolbar select {
@@ -76,18 +106,36 @@ nav.toolbar button:hover {
   background-color: #219150;
 }
 
-/* Main Content Area */
-main {
-  margin: 20px;
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: #f5f5f5;
+  align-items: center;
 }
 
-.scroll-container {
+.status-bar span {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Main Content Area */
+main {
+  padding: 20px;
+  flex: 1;
+  min-height: 0;
+}
+
+#scroll-container {
   background: #fff;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  max-height: 70vh;
   overflow-y: auto;
+  height: 100%;
 }
 
 /* Category Group Styles */
@@ -101,38 +149,133 @@ main {
 }
 
 .category-group h2 {
-  margin-bottom: 10px;
+  margin: 0;
   font-size: 1.5rem;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.category-toggle {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px;
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+}
+
+.category-group.collapsed .category-toggle {
+  transform: rotate(-90deg);
+}
+
+.category-group.collapsed .fields-container {
+  display: none;
+}
+
+/* Toasts */
+#toast-container {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.toast {
+  min-width: 220px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.toast-success {
+  background: #1f7a3a;
+}
+
+.toast-error {
+  background: #a32020;
+}
+
+.toast-info {
+  background: #2a5c9a;
+}
+
+.toast button {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
 }
 
 /* Field Row Styles */
 .field-row {
   margin-bottom: 10px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
 }
 
 .field-row label {
-  width: 250px;
   font-weight: bold;
-  text-align: right;
-  margin-right: 15px;
+  text-align: left;
 }
 
 .field-row input,
 .field-row select,
 .field-row textarea {
-  flex: 1;
   padding: 8px;
   border: 1px solid #bdc3c7;
   border-radius: 4px;
   background-color: #fff;
   color: #333;
+  width: 100%;
 }
 
 /* Optional Field Highlight */
 .optional {
   background-color: #fff3cd;
+}
+
+/* Section Nav Items */
+.section-nav-item {
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: #f0f0f0;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.95rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.section-nav-item:hover,
+.section-nav-item:focus {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.section-nav-item.active {
+  background: #78010b;
+  color: #fff;
+  font-weight: 600;
 }
 
 /* OEE Metrics Section */

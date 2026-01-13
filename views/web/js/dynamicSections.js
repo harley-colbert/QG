@@ -10,11 +10,12 @@ import {
   clearField,
   getFileBrowseFields
 } from './apiWrapper.js';
-import { registerField } from './viewStore.js';
+import { registerField, markDirty } from './viewStore.js';
 import {
   updateCostSheetTotal,
   updateProjectMilestones
 } from './milestones.js';
+import { rebuildSectionNav } from './sectionNav.js';
 
 // internalKey → human category mapping
 const keyToCategory = {};
@@ -162,6 +163,8 @@ export async function addSection(internalKey) {
       inputEl.dataset.fieldKey = newKey;
       inputEl.addEventListener('input', () => {
         setField(newKey, inputEl.value).catch(err => console.error(`Error setting field ${newKey}`, err));
+        const quoteType = document.getElementById('quote-type-select')?.value || 'budgetary';
+        markDirty(quoteType);
       });
       console.log(`    ↳ Created textarea for "${newKey}"`);
     } else {
@@ -171,6 +174,8 @@ export async function addSection(internalKey) {
       inputEl.dataset.fieldKey = newKey;
       inputEl.addEventListener('input', () => {
         setField(newKey, inputEl.value).catch(err => console.error(`Error setting field ${newKey}`, err));
+        const quoteType = document.getElementById('quote-type-select')?.value || 'budgetary';
+        markDirty(quoteType);
       });
       console.log(`    ↳ Created text input for "${newKey}"`);
     }
@@ -220,6 +225,7 @@ export async function addSection(internalKey) {
 
   container.appendChild(sectionWrapper);
   console.log(`[addSection] Completed injection for index ${newIndex}\n`);
+  rebuildSectionNav();
 }
 
 /**
@@ -267,4 +273,5 @@ export async function deleteSection(internalKey, indexToDelete) {
       }
     }
   }
+  rebuildSectionNav();
 }
