@@ -1,19 +1,8 @@
 # services/word/constants.py
 import logging
 
-LOG_PREFIX = "[QUILL2DOC]"
+LOG_PREFIX = "[WORD]"
 WD_WITHIN_TABLE = 12  # WdInformation.wdWithInTable
-
-# Only these exact dotted paths remain rich (HTML/Delta) – everything else becomes plain text.
-EXCEPTION_HTML_FIELDS = {
-    "data.zonefunctions.guardingdescription",
-    "data.riskdescription.1",
-    "data.zonefunctions.controlsdescription.hardware",
-    "data.zonefunctions.controlsdescription.hmi",
-    "data.zonefunctions.controlsdescription.safety",
-    "data.partsduedescription.po1",
-    "data.partsduedescription.po2",
-}
 
 # Sizing rules for images keyed by content key (mm)
 IMAGE_SIZE_LIMITS = {
@@ -83,7 +72,7 @@ class AsciiSanitizerFilter(logging.Filter):
                 record.args = _safe_ascii(str(record.args))
         return True
 
-logger = logging.getLogger("quill2doc")
+logger = logging.getLogger("word")
 logger.setLevel(logging.DEBUG)
 if not logger.hasHandlers():
     handler = logging.StreamHandler()

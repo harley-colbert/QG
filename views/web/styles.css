@@ -240,7 +240,7 @@ main {
   cursor: pointer;
 }
 
-/* Rich‑text (Quill) Editor Styles */
+/* Description textareas */
 .description-row {
   display: flex;
   flex-direction: column;
@@ -248,39 +248,12 @@ main {
   margin-bottom: 1em;
 }
 
-.description-row .quill-editor {
-  width: 600px;
-  overflow: hidden;
-}
-
-.description-row .quill-editor > .ql-toolbar {
+.description-row textarea {
   width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 0.5em;
-}
-
-.description-row .quill-editor > .ql-container {
-  width: 100%;
-  box-sizing: border-box;
-  border-top: none;
-  overflow-y: hidden;
-}
-
-.description-row .quill-editor .ql-editor {
-  min-height: 120px;
+  min-height: 140px;
   padding: 0.5em;
-  height: auto !important;
-  overflow-y: hidden !important;
-  background-color: white;
-  color: black;
-}
-
-.ql-toolbar.ql-snow {
-  background-color: darkgrey;
-}
-
-.ql-toolbar.ql-snow + .ql-container.ql-snow {
-  width: 100%;
+  font-size: 0.95rem;
+  resize: vertical;
 }
 
 /* Optional‑category Styles */
@@ -304,18 +277,9 @@ main {
   border: 1px solid #ccc;
 }
 
-.category-group.optional-category .ql-editor {
+.category-group.optional-category textarea {
   color: black;
   background-color: white;
-}
-
-.category-group.optional-category .ql-toolbar {
-  background-color: white;
-}
-
-.category-group.optional-category .ql-toolbar button,
-.category-group.optional-category .ql-toolbar .ql-picker-label {
-  color: black !important;
 }
 
 /* Contacts Table Styles */
@@ -522,13 +486,6 @@ tr {
     margin-bottom: 15px;
 }
 
-.quill-editor {
-    min-height: 150px;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px;
-}
 button.dynamic-button {
   background-color: #282828;
   border: none;

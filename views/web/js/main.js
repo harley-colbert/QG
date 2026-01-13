@@ -24,9 +24,8 @@ import {
 } from './apiWrapper.js';
 
 import { loadSubmissionModal } from './submissionModal.js';
-import { activeFieldKeys, unregisterField, viewStore, unregisterQuill, applyViewStore, quillInstances, registerQuill, registerField } from './viewStore.js';
+import { activeFieldKeys, unregisterField, viewStore, applyViewStore, registerField } from './viewStore.js';
 import { registerAddButton, ensureDynamicSlots, addSection } from './dynamicSections.js';
-import { initQuill, rehydrateQuills } from './quillSetup.js';
 import { renderOeeSection } from './oeeDashboard.js';
 import { updateCostSheetTotal, updateProjectMilestones } from './milestones.js';
 import { loadSettingsModal, populateSettingsForm } from './settingsModal.js';
@@ -35,7 +34,7 @@ import { loadContactsModal  } from './contactsModal.js';
 let fileBrowseMapping = {};
 
 /**
- * Snapshot every plain field + every Quill editor into viewStore[type].
+ * Snapshot every plain field into viewStore[type].
  *
  * @param {string} type  e.g. "budgetary" or "final"
  */
@@ -59,12 +58,6 @@ function saveViewStore(type) {
     let val = span.textContent.trim();
     if (val.endsWith('%')) val = val.slice(0, -1).trim();
     snapshot[key] = val;
-  });
-
-  // C) Capture all your Quill editors
-  Object.entries(quillInstances).forEach(([fieldKey, quill]) => {
-    if (!quill || !quill.root) return;
-    snapshot[fieldKey] = quill.root.innerHTML;
   });
 
   viewStore[type] = snapshot;
@@ -91,11 +84,7 @@ async function renderCategories(type = 'budgetary') {
   console.log('  ↳ Clearing innerHTML of #main-content');
   mainContent.innerHTML = '';
 
-  // 2) Reset any existing Quill instances
-  console.log('  ↳ Calling rehydrateQuills({}) to reset editors');
-  rehydrateQuills({});
-
-  // 3) Fetch supporting metadata
+  // 2) Fetch supporting metadata
   console.log('  ↳ Fetching optional headers list...');
   const optionalHeaders = await getOptionalCategories();
   console.log(`      • optionalHeaders: [${optionalHeaders.join(', ')}]`);
@@ -112,7 +101,7 @@ async function renderCategories(type = 'budgetary') {
   const spellcheckCategories = await getSpellCheckCategories();
   console.log(`      • spellcheckCategories: [${spellcheckCategories.join(', ')}]`);
 
-  // 4) Loop over each category block
+  // 3) Loop over each category block
   for (const category of categories) {
     console.log(`\n  [renderCategories] Processing category="${category}"`);
 
@@ -163,7 +152,7 @@ async function renderCategories(type = 'budgetary') {
       rowDiv.appendChild(createLabel(fieldDef));
       console.log('        ↳ Created rowDiv and appended its <label>');
 
-      // ii) Create appropriate input (text/select/quill/etc.)
+      // ii) Create appropriate input (text/select/textarea/etc.)
       console.log('        ↳ Creating input element via createFieldInput(...)');
       const inputElement = await createFieldInput({
         category,
@@ -192,7 +181,7 @@ async function renderCategories(type = 'budgetary') {
     console.log(`    ↳ Appended category-group "${category}" to #main-content`);
   }
 
-  // 5) Re-apply any stored values into the newly-rendered inputs
+  // 4) Re-apply any stored values into the newly-rendered inputs
   console.log('\n[renderCategories] Calling applyViewStore for type="' + type + '"');
   applyViewStore(type);
   console.log('[renderCategories] Complete for quoteType="' + type + '"\n');
@@ -311,23 +300,19 @@ async function createFieldInput({ category, field, specialLists, spellcheckCats 
     return select;
   }
 
-  // 3️⃣ Rich-text (Quill)
+  // 3️⃣ Description text areas
   if (/description/i.test(field.key)) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'field-input';
-    const hidden = document.createElement('input');
-    hidden.type = 'hidden';
-    hidden.id = hidden.name = field.key;
-    wrapper.appendChild(hidden);
-    const editor = document.createElement('div');
-    editor.className = 'quill-editor';
-    editor.id = `editor-${field.key}`;
-	console.log(`[register ViewStore] registered key ${field.key}`);
-    wrapper.appendChild(editor);
-
-    const quill = initQuill(field.key, editor);
-    registerQuill(field.key, quill);
-    return wrapper;
+    const textarea = document.createElement('textarea');
+    textarea.id = textarea.name = field.key;
+    textarea.dataset.fieldKey = field.key;
+    textarea.spellcheck = spellcheckCats.includes(category);
+    try {
+      const val = await getField(field.key);
+      if (val != null) textarea.value = val;
+    } catch {}
+    registerField(field.key);
+    console.log(`[register ViewStore] registered key ${field.key}`);
+    return textarea;
   }
 
   // 4️⃣ Shipping Information dropdown
@@ -480,13 +465,7 @@ function innerApply(data) {
   Object.entries(data).forEach(([k, v]) => {
     console.log(`\n→ Processing key "${k}" with value:`, v);
 
-    // 1) Skip rich-text (we handle via rehydrateQuills)
-    if (k.includes('description')) {
-      console.log(`   ↳ Skipping description key "${k}"`);
-      return; 
-    }
-
-    // 2) Find the element by id
+    // 1) Find the element by id
     const el = document.getElementById(k);
     if (!el) {
       console.warn(`   ⚠️  No element found with id="${k}", skipping`);
@@ -494,7 +473,7 @@ function innerApply(data) {
     }
     console.log(`   ↳ Found element <${el.tagName.toLowerCase()}>#${k}`);
 
-    // 3) Apply the value
+    // 2) Apply the value
     if (el.tagName === 'SELECT') {
       // match option by value
       const optionIndex = [...el.options].findIndex(o => o.value === v);
@@ -507,10 +486,6 @@ function innerApply(data) {
       el.value = v;
     }
   });
-
-  // 4) Finally, rehydrate all your Quill editors
-  console.log('\n🔄 Rehydrating Quill editors with data for descriptions');
-  rehydrateQuills(data);
 
   console.log('✅ [innerApply] Complete');
 }
@@ -546,9 +521,8 @@ async function init() {
 
   document.getElementById('btn-new').addEventListener('click', async () => {
     await newQuote();
-    document.querySelectorAll('.field-row input, .field-row select')
+    document.querySelectorAll('.field-row input, .field-row select, .field-row textarea')
       .forEach(el => { el.tagName === 'SELECT' ? el.selectedIndex = 0 : el.value = ''; });
-    rehydrateQuills({});
   });
 
   document.getElementById('btn-open').addEventListener('click', async () => {

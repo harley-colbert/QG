@@ -10,14 +10,9 @@ export const viewStore = {
 };
 
 /**
- * Registered active field keys (inputs, selects, textareas, Quill editors).
+ * Registered active field keys (inputs, selects, textareas).
  */
 export const activeFieldKeys = new Set();
-
-/**
- * Map of Quill editors keyed by fieldKey.
- */
-export const quillInstances = {};
 
 /**
  * Register a field so saveViewStore knows to include it.
@@ -38,27 +33,6 @@ export function unregisterField(fieldKey) {
   Object.keys(viewStore).forEach(type => {
     delete viewStore[type][fieldKey];
   });
-  // Also unregister Quill if present
-  if (quillInstances[fieldKey]) delete quillInstances[fieldKey];
-}
-
-/**
- * Link a newly created Quill editor to its fieldKey and register it.
- * @param {string} fieldKey
- * @param {Quill} quill
- */
-export function registerQuill(fieldKey, quill) {
-  quillInstances[fieldKey] = quill;
-  registerField(fieldKey);
-}
-
-/**
- * Unregister a Quill editor when its field is removed.
- * @param {string} fieldKey
- */
-export function unregisterQuill(fieldKey) {
-  delete quillInstances[fieldKey];
-  unregisterField(fieldKey);
 }
 
 /**
@@ -72,24 +46,18 @@ export function applyViewStore(type) {
     const el =
       document.querySelector(`[data-field-key="${fieldKey}"]`) ||
       document.querySelector(`[name="${fieldKey}"]`);
-    if (el && !(el.tagName === 'DIV' && quillInstances[fieldKey])) {
+    if (el) {
       el.value = val;
-    }
-  });
-  // Quill editors
-  Object.entries(quillInstances).forEach(([fieldKey, quill]) => {
-    if (data[fieldKey] != null) {
-      quill.clipboard.dangerouslyPasteHTML(data[fieldKey], 'silent');
     }
   });
 }
 
 /**
- * Snapshot all active fields (and OEE cards + Quills) into viewStore.
+ * Snapshot all active fields (and OEE cards) into viewStore.
  * @param {string} type
  */
 /**
- * Snapshot all active fields (and OEE cards + Quills) into viewStore.
+ * Snapshot all active fields (and OEE cards) into viewStore.
  * @param {string} type
  */
 export function saveViewStore(type) {
@@ -138,13 +106,6 @@ export function saveViewStore(type) {
 
 	  snapshot[key] = val;
 	});
-
-  // C) Quill editors
-  Object.entries(quillInstances).forEach(([fieldKey, quill]) => {
-	if (!quill || !quill.root) return;
-	// Store HTML contents for this Quill field
-	snapshot[fieldKey] = quill.root.innerHTML;
-  });
 
   // Store the snapshot in the appropriate viewStore section
   viewStore[type] = snapshot;

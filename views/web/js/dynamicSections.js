@@ -10,7 +10,7 @@ import {
   clearField,
   getFileBrowseFields
 } from './apiWrapper.js';
-import { initQuill } from './quillSetup.js';
+import { registerField } from './viewStore.js';
 import {
   updateCostSheetTotal,
   updateProjectMilestones
@@ -157,19 +157,13 @@ export async function addSection(internalKey) {
 
     let inputEl;
     if (/description/i.test(fieldDef.key)) {
-      inputEl = document.createElement('div');
-      inputEl.className = 'field-input';
-      const hidden = document.createElement('input');
-      hidden.type           = 'hidden';
-      hidden.id             = hidden.name = newKey;
-      hidden.dataset.fieldKey = newKey;
-      const editor = document.createElement('div');
-      editor.id             = `editor-${newKey}`;
-      editor.className      = 'quill-editor';
-      editor.dataset.fieldKey = newKey;
-      inputEl.append(hidden, editor);
-      initQuill(newKey, editor);
-      console.log(`    ↳ Initialized Quill for "${newKey}"`);
+      inputEl = document.createElement('textarea');
+      inputEl.id = inputEl.name = newKey;
+      inputEl.dataset.fieldKey = newKey;
+      inputEl.addEventListener('input', () => {
+        setField(newKey, inputEl.value).catch(err => console.error(`Error setting field ${newKey}`, err));
+      });
+      console.log(`    ↳ Created textarea for "${newKey}"`);
     } else {
       inputEl = document.createElement('input');
       inputEl.type           = 'text';
@@ -180,6 +174,7 @@ export async function addSection(internalKey) {
       });
       console.log(`    ↳ Created text input for "${newKey}"`);
     }
+    registerField(newKey);
     rowDiv.appendChild(inputEl);
 
     // 🔍 Browse button for eligible file fields
@@ -253,7 +248,7 @@ export async function deleteSection(internalKey, indexToDelete) {
       console.log(`  ↳ Shifting ${idx} → ${newIdx}`);
 
       // Update IDs, names, labels, and fieldKey dataset
-      section.querySelectorAll('input, label, .quill-editor').forEach(el => {
+      section.querySelectorAll('input, label, textarea').forEach(el => {
         ['id','name','htmlFor','dataset.fieldKey'].forEach(prop => {
           if (el[prop]) el[prop] = el[prop].replace(`.${idx}`, `.${newIdx}`);
         });
