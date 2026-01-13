@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quote Generator</title>
+
+  <!-- Font Awesome (local build) -->
+  <link rel="stylesheet" href="awesome.css" />
+
+  <!-- Quill Snow Theme -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" />
+
+  <!-- App‑specific styles -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- ──────────────────────────────────────────────────────────────
+       Import map:  tells the native ES‑module loader where to find
+       the specifier "quill".  Using esm.sh gives us an ESM wrapper,
+       so `import Quill from 'quill'` works in the browser.
+       ────────────────────────────────────────────────────────────── -->
+  <script type="importmap">
+  {
+    "imports": {
+      "quill": "./quill.bundle.mjs"
+    }
+  }
+  </script>
+</head>
+
+<body>
+  <!-- ═══════════════  APP BAR  ═══════════════ -->
+  <header>
+    <img src="logo.png" alt="Logo" class="header-logo" />
+    <h1>Quote Generator</h1>
+  </header>
+
+  <!-- ═══════════════  MAIN TOOLBAR  ═══════════════ -->
+  <nav class="toolbar">
+    <select id="quote-type-select">
+      <option value="budgetary">Budgetary</option>
+      <option value="final">Final</option>
+    </select>
+    <button id="btn-savedoc">Save</button>
+    <button id="btn-new">New</button>
+    <button id="btn-open">Open</button>
+    <button id="btn-submit">Submit</button>
+    <button id="btn-contacts">Manage Contacts</button>
+    <button id="btn-settings">Manage Settings</button>
+  </nav>
+
+  <!-- ═══════════════  MAIN CONTENT  ═══════════════ -->
+  <main>
+    <div id="main-content" class="scroll-container"></div>
+  </main>
+
+  <!-- ═══════════════  MODALS  ═══════════════ -->
+  <!-- Submission -->
+  
+
+  <!-- Contacts -->
+  <!-- Main Contacts Modal Root (always present) -->
+	<div id="contacts-modal" class="modal" style="display:none;">
+	  <div id="contacts-modal-body"></div>
+	</div>
+
+	<!-- Edit Contact Modal Root (always present) -->
+	<div id="edit-contacts-modal" class="modal" style="display:none;">
+	  <div id="edit-contacts-modal-body"></div>
+	</div>
+
+
+  <!-- in index.html or your main layout -->
+  <div id="submission-modal-body"></div>
+
+
+  <!-- Settings -->
+  <div id="settings-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div id="settings-modal-body"><!-- settings.html injects here --></div>
+    </div>
+  </div>
+
+  <!-- Shipping Info -->
+  <div id="ship-info-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <span id="ship-info-close" class="modal-close">&times;</span>
+      <img src="inco.jpg" alt="Information"
+           style="max-width:100%; height:auto;" />
+    </div>
+  </div>
+
+  <!-- ═══════════════  APP ENTRYPOINT  ═══════════════ -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

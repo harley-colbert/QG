@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Manage Application Settings</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:0}
+    header{background:#5a1f1a;color:#fff;padding:1rem}
+    main{padding:1rem}
+    .field-row{display:flex;gap:.5rem;align-items:center;margin-bottom:1rem}
+    .field-row label{flex:0 0 180px}
+    .field-row input{flex:1 1 auto;padding:.4rem}
+    .field-row button{flex:0 0 100px;padding:.4rem .6rem}
+    .button-row{display:flex;gap:.5rem;justify-content:flex-end}
+    .save-btn{background:#28a745;color:#fff;border:none}
+    .cancel-btn{background:#dc3545;color:#fff;border:none}
+  </style>
+</head>
+<body>
+<header><h1>Manage Application Settings</h1></header>
+<main>
+  <div class="settings-container">
+    <form id="settings-form">
+      <div class="field-row">
+        <label for="settings-template-filename">Template&nbsp;Filename:</label>
+        <input type="text" id="settings-template-filename" name="TEMPLATE_FILENAME" readonly/>
+        <button type="button" id="settings-browse-template">Browse</button>
+      </div>
+
+      <!-- NEW – DB folder -->
+      <div class="field-row">
+        <label for="settings-db-folder-path">Database&nbsp;Folder:</label>
+        <input type="text" id="settings-db-folder-path" name="DB_FOLDER_PATH"  readonly/>
+        <button type="button" id="settings-browse-db-folder">Browse</button>
+      </div>
+
+      <!-- NEW – Log folder -->
+      <div class="field-row">
+        <label for="settings-log-folder-path">Log&nbsp;Folder:</label>
+        <input type="text" id="settings-log-folder-path" name="LOG_FOLDER_PATH" readonly/>
+        <button type="button" id="settings-browse-log-folder">Browse</button>
+      </div>
+
+      <div class="button-row">
+        <button type="submit" class="save-btn">Save&nbsp;Settings</button>
+        <button type="button" class="cancel-btn" id="settings-cancel-settings">Cancel</button>
+      </div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

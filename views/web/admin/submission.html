@@ -1,0 +1,24 @@
+<!-- admin/submission.html -->
+<div class="modal" id="submission-modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close" id="close-submission-modal">&times;</span>
+    <h2>Submit Quote</h2>
+    <div>
+	  <label for="template-filename">Template Path:</label>
+	  <input type="text" id="template-filename" />
+	  <button type="button" id="browse-template-filename">Browse…</button>
+	</div>
+	<div>
+	  <label for="output-path">Output Path:</label>
+	  <input type="text" id="output-path" />
+	  <button type="button" id="browse-output-path">Browse…</button>
+	</div>
+    <div style="margin-top: 1em;">
+      <button id="btn-start-submission">Submit</button>
+    </div>
+    <div style="margin-top: 2em;">
+      <progress id="submission-progress" value="0" max="100"></progress>
+      <div id="submission-status"></div>
+    </div>
+  </div>
+</div>
