@@ -6,7 +6,7 @@
  * @param {string} name  – the input’s id attribute
  * @returns {string} HTML string for a form row
  */
- import { registerField } from './viewStore.js';
+ import { registerField, markDirty } from './viewStore.js';
 
  
 function buildInputRow(label, name) {
@@ -82,11 +82,16 @@ export function renderOeeSection(container) {
 		return setTimeout(attach, 50);
 	  }
 	  console.log(`[OEE] attach: found ${inputs.length} inputs`);
+	  const debouncedCalc = debounce(runOeeCalc, 50);
 	  inputs.forEach(i => {
 		console.log(`[OEE] attach: binding #${i.id}`);
 		// Register for viewStore snapshots
 		registerField(i.getAttribute('data-field-key') || i.name || i.id);
-		i.addEventListener('input', debounce(runOeeCalc, 50));
+		i.addEventListener('input', () => {
+		  const quoteType = document.getElementById('quote-type-select')?.value || 'budgetary';
+		  markDirty(quoteType);
+		  debouncedCalc();
+		});
 	  });
 	})();
 

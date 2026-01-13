@@ -24,12 +24,25 @@ import {
 } from './apiWrapper.js';
 
 import { loadSubmissionModal } from './submissionModal.js';
-import { activeFieldKeys, unregisterField, viewStore, applyViewStore, registerField } from './viewStore.js';
+import {
+  activeFieldKeys,
+  unregisterField,
+  viewStore,
+  applyViewStore,
+  registerField,
+  markDirty,
+  clearDirty,
+  setActiveFile,
+  setLastSaved,
+  getUiMeta
+} from './viewStore.js';
 import { registerAddButton, ensureDynamicSlots, addSection } from './dynamicSections.js';
 import { renderOeeSection } from './oeeDashboard.js';
 import { updateCostSheetTotal, updateProjectMilestones } from './milestones.js';
 import { loadSettingsModal, populateSettingsForm } from './settingsModal.js';
 import { loadContactsModal  } from './contactsModal.js';
+import { initSectionNav, rebuildSectionNav } from './sectionNav.js';
+import { toastSuccess, toastError, toastInfo } from './toast.js';
 
 let fileBrowseMapping = {};
 
@@ -64,6 +77,18 @@ function saveViewStore(type) {
 }
 
 
+
+function slugifyCategory(category) {
+  return category
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function getCollapseStorageKey(quoteType, slug) {
+  return `qg.collapse.${quoteType}.${slug}`;
+}
 
 /** Renders all categories (and fields) for the given quote type */
 /**
@@ -108,7 +133,7 @@ async function renderCategories(type = 'budgetary') {
     const isOptional = optionalHeaders.includes(category);
     console.log(`    ↳ isOptional? ${isOptional}`);
 
-    const groupDiv = createCategoryGroup(category, isOptional);
+    const groupDiv = createCategoryGroup(category, isOptional, type);
     const fieldsContainer = groupDiv.querySelector('.fields-container');
 
     // 4a) Special-case OEE Metrics: render via custom helper
@@ -184,6 +209,8 @@ async function renderCategories(type = 'budgetary') {
   // 4) Re-apply any stored values into the newly-rendered inputs
   console.log('\n[renderCategories] Calling applyViewStore for type="' + type + '"');
   applyViewStore(type);
+  rebuildSectionNav();
+  updateStatusUI(type);
   console.log('[renderCategories] Complete for quoteType="' + type + '"\n');
 }
 
@@ -196,7 +223,7 @@ async function renderCategories(type = 'budgetary') {
  * @param {boolean} isOptional    Whether to mark this entire group as optional
  * @returns {HTMLDivElement}      The fully-wired category-group element
  */
-function createCategoryGroup(category, isOptional = false) {
+function createCategoryGroup(category, isOptional = false, quoteType = 'budgetary') {
   console.log(`[createCategoryGroup] begin: category="${category}", isOptional=${isOptional}`);
 
   // 1) Create outer wrapper
@@ -211,6 +238,9 @@ function createCategoryGroup(category, isOptional = false) {
     console.log(`  ↳ Added CSS class "optional" to category-group for "${category}"`);
   }
 
+  const slug = slugifyCategory(category);
+  groupDiv.dataset.categorySlug = slug;
+
   // 3) Generate and assign a stable ID
   const sanitizedId = category.replace(/\s+/g, '');
   const containerId = `${sanitizedId}-container`;
@@ -218,11 +248,46 @@ function createCategoryGroup(category, isOptional = false) {
   console.log(`  ↳ Assigned id="${containerId}"`);
 
   // 4) Build inner HTML structure: a header plus a fields-container
-  groupDiv.innerHTML = `
-    <h2>${category}</h2>
-    <div class="fields-container"></div>
-  `;
-  console.log('  ↳ Populated innerHTML with <h2> and <div class="fields-container">');
+  const header = document.createElement('div');
+  header.className = 'category-header';
+  const title = document.createElement('h2');
+  title.textContent = category;
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'category-toggle';
+  toggle.setAttribute('aria-label', `Toggle ${category}`);
+  toggle.setAttribute('aria-expanded', 'true');
+  toggle.innerHTML = '<span aria-hidden="true">▾</span>';
+  header.append(title, toggle);
+
+  const fieldsContainer = document.createElement('div');
+  fieldsContainer.className = 'fields-container';
+
+  groupDiv.append(header, fieldsContainer);
+  console.log('  ↳ Populated structure with .category-header and .fields-container');
+
+  const storageKey = getCollapseStorageKey(quoteType, slug);
+  const applyCollapsedState = isCollapsed => {
+    groupDiv.classList.toggle('collapsed', isCollapsed);
+    toggle.setAttribute('aria-expanded', String(!isCollapsed));
+    localStorage.setItem(storageKey, String(isCollapsed));
+  };
+
+  const storedState = localStorage.getItem(storageKey);
+  if (storedState === 'true') {
+    applyCollapsedState(true);
+  }
+
+  const toggleCollapsed = () => {
+    applyCollapsedState(!groupDiv.classList.contains('collapsed'));
+  };
+
+  toggle.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleCollapsed();
+  });
+  header.addEventListener('click', toggleCollapsed);
 
   console.log(`[createCategoryGroup] end for category="${category}"\n`);
   return groupDiv;
@@ -247,6 +312,30 @@ function createLabel(field) {
 
 function getCurrentQuoteType() {
 	return document.getElementById('quote-type-select').value;
+}
+
+function getDisplayFileName(path) {
+  if (!path) return '';
+  const normalized = path.replace(/\\/g, '/');
+  const parts = normalized.split('/');
+  return parts[parts.length - 1] || path;
+}
+
+function updateStatusUI(type) {
+  const meta = getUiMeta(type);
+  const fileEl = document.getElementById('status-file');
+  const dirtyEl = document.getElementById('status-dirty');
+  const savedEl = document.getElementById('status-last-saved');
+
+  if (fileEl) {
+    fileEl.textContent = meta.activeFile ? `File: ${getDisplayFileName(meta.activeFile)}` : 'No file';
+  }
+  if (dirtyEl) {
+    dirtyEl.textContent = meta.dirty ? 'Unsaved changes' : 'Clean';
+  }
+  if (savedEl) {
+    savedEl.textContent = meta.lastSaved ? `Last saved: ${meta.lastSaved}` : 'Last saved: —';
+  }
 }
 
 async function createFieldInput({ category, field, specialLists, spellcheckCats }) {
@@ -343,12 +432,14 @@ async function createFieldInput({ category, field, specialLists, spellcheckCats 
 function setupInputField(inputEl, field, category, browseFields, row) {
   // 1️⃣ Wire up change handler
   if (!inputEl.readOnly) {
-    inputEl.addEventListener('input', () =>
+    inputEl.addEventListener('input', () => {
       setField(field.key, inputEl.value)
-        .catch(() => console.error('Error setting field', field.key))
-    );
-	saveViewStore(getCurrentQuoteType());
-	console.log(`[register ViewStore] registered key ${field.key}`);
+        .catch(() => console.error('Error setting field', field.key));
+      saveViewStore(getCurrentQuoteType());
+      console.log(`[register ViewStore] registered key ${field.key}`);
+      markDirty(getCurrentQuoteType());
+      updateStatusUI(getCurrentQuoteType());
+    });
   }
 
   // 2️⃣ Debug what we're comparing
@@ -388,6 +479,8 @@ function createBrowseButton(inputEl, field) {
       await setField(field.key, path);
 	  saveViewStore(getCurrentQuoteType());
 	  console.log(`[register ViewStore] registered key ${field.key}`);	
+      markDirty(getCurrentQuoteType());
+      updateStatusUI(getCurrentQuoteType());
       // 3) Immediately trigger Cost Sheet & Milestones
       if (field.key.includes('data.costSheet.link')) {
         const idx = field.key.split('.').pop();
@@ -499,10 +592,18 @@ async function init() {
     window.addEventListener('pywebviewready', init); return;
   }
 
+  document.addEventListener('qg:ui-meta-changed', event => {
+    if (event.detail?.type) {
+      updateStatusUI(event.detail.type);
+    }
+  });
+
   fileBrowseMapping = await getFileBrowseFields();
+  initSectionNav({ scrollRootId: 'scroll-container', navRootId: 'section-nav' });
 
   const quoteSelect = document.getElementById('quote-type-select');
   await renderCategories(quoteSelect.value);
+  updateStatusUI(quoteSelect.value);
 
   quoteSelect._last = quoteSelect.value;
   quoteSelect.addEventListener('change', async () => {
@@ -510,23 +611,49 @@ async function init() {
     await renderCategories(quoteSelect.value);
     applyViewStore(quoteSelect.value);
     quoteSelect._last = quoteSelect.value;
+    updateStatusUI(quoteSelect.value);
   });
 
   document.getElementById('btn-savedoc').addEventListener('click', async () => {
     const type = document.getElementById('quote-type-select').value;
     saveViewStore(type);
     await setAllFields(viewStore[type]);
-    try { await saveQuote(type); alert('Quote saved'); } catch { alert('Save failed'); }
+    try {
+      const result = await saveQuote(type);
+      const payload = result && typeof result === 'object' ? result : {};
+      const path = payload.path || '';
+      if (!path) {
+        toastInfo('Save canceled');
+        return;
+      }
+      const savedAt = payload.savedAt || new Date().toLocaleString();
+      setActiveFile(type, path);
+      setLastSaved(type, savedAt);
+      clearDirty(type);
+      updateStatusUI(type);
+      toastSuccess('Quote saved');
+    } catch (err) {
+      toastError('Save failed');
+    }
   });
 
   document.getElementById('btn-new').addEventListener('click', async () => {
     await newQuote();
     document.querySelectorAll('.field-row input, .field-row select, .field-row textarea')
       .forEach(el => { el.tagName === 'SELECT' ? el.selectedIndex = 0 : el.value = ''; });
+    const type = document.getElementById('quote-type-select').value;
+    setActiveFile(type, '');
+    setLastSaved(type, '');
+    clearDirty(type);
+    updateStatusUI(type);
+    toastInfo('Started a new quote');
   });
 
   document.getElementById('btn-open').addEventListener('click', async () => {
     const payload = await openQuote();
+    if (!payload || !payload.quotes) {
+      return;
+    }
     const record = Array.isArray(payload.quotes)
       ? payload.quotes[0]
       : Object.values(payload.quotes)[0];
@@ -534,6 +661,12 @@ async function init() {
     await loadQuoteToForm({ quoteType: payload.quoteType, quotes: flat });
     viewStore[payload.quoteType] = payload.fields;
     applyViewStore(payload.quoteType);
+    if (payload.path) {
+      setActiveFile(payload.quoteType, payload.path);
+    }
+    clearDirty(payload.quoteType);
+    updateStatusUI(payload.quoteType);
+    toastSuccess('Quote opened');
   });
 
 	// NEW: Handle modal submission to generate the Word doc

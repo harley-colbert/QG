@@ -5,6 +5,7 @@ import {
   browseTemplateFile,
   browseSaveFile
 } from './apiWrapper.js';
+import { toastError, toastInfo, toastSuccess } from './toast.js';
 
 const SUBMISSION_HTML_PATH = 'admin/submission.html';
 let submissionModalLoaded = false;
@@ -216,6 +217,7 @@ async function onSubmissionModalSubmit() {
   console.log('[submissionModal] Submission started.');
   const statusEl = document.getElementById('submission-status');
   const progressEl = document.getElementById('submission-progress');
+  const submitBtn = document.getElementById('btn-start-submission');
   const templatePath = document.getElementById('template-filename').value.trim();
   const outputPath = document.getElementById('output-path').value.trim();
 
@@ -226,10 +228,16 @@ async function onSubmissionModalSubmit() {
     statusEl.textContent = 'Missing template or output path!';
     progressEl.value = 0;
     console.warn('[submissionModal] Validation failed: Missing template or output path.');
+    toastError('Submission missing template or output path');
     return;
   }
 
   try {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+    }
+    toastInfo('Submitting quote...');
     statusEl.textContent = 'Submitting to backend...';
     progressEl.value = 30;
     console.log(`[submissionModal] Calling backend: templatePath="${templatePath}", outputPath="${outputPath}"`);
@@ -238,6 +246,7 @@ async function onSubmissionModalSubmit() {
     statusEl.textContent = 'Submission complete!';
     progressEl.value = 100;
     console.log('[submissionModal] Submission completed successfully.');
+    toastSuccess('Submission complete');
 
     // Auto-close after delay
     setTimeout(() => {
@@ -248,6 +257,12 @@ async function onSubmissionModalSubmit() {
     statusEl.textContent = 'Submission failed: ' + (e.message || e);
     progressEl.value = 0;
     console.error('[submissionModal] Submission failed:', e);
+    toastError('Submission failed');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+    }
   }
 }
 
@@ -256,5 +271,4 @@ window.updateSubmissionStatus = function(msg) {
     const statusEl = document.getElementById('submission-status');
     if (statusEl) statusEl.textContent = msg;
 };
-
 

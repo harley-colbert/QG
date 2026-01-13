@@ -77,7 +77,7 @@ class PyWebViewAPI:
     # -------------------------
     # Quote persistence & lifecycle
     # -------------------------
-    def save_quote(self, quote_type) -> None:
+    def save_quote(self, quote_type) -> dict:
         """
         Prompt Save As, then persist all fields from the JS store and write XML.
         Assumes JS has already called set_all_fields(viewStore).
@@ -97,13 +97,17 @@ class PyWebViewAPI:
         )
         if not paths:
             self.logger.info("User cancelled save dialog")
-            return
+            return {}
 
-        xml_path = paths
+        xml_path = paths[0] if isinstance(paths, (list, tuple)) else paths
         try:
             # Persist XML from the one Quote.data map
             self.vm.save_quote(xml_path, quote_type)
             self.logger.info(f"Quote saved to {xml_path}")
+            return {
+                "path": xml_path,
+                "savedAt": datetime.datetime.now().isoformat()
+            }
         except Exception as e:
             self.logger.error(f"Failed to save quote to {xml_path}: {e}", exc_info=True)
             raise
@@ -166,7 +170,7 @@ class PyWebViewAPI:
         if not paths:
             return {}
 
-        filename = paths[0]
+        filename = paths[0] if isinstance(paths, (list, tuple)) else paths
         # 1) load into the single Quote instance
         quotes_data = self.vm.load_quote(filename)
 
@@ -178,8 +182,9 @@ class PyWebViewAPI:
 
         return {
             "quoteType": quote_type,
-            "quotes":    quotes_data,
-            "fields":    all_fields,
+            "quotes": quotes_data,
+            "fields": all_fields,
+            "path": filename
         }
 
     # -------------------------
